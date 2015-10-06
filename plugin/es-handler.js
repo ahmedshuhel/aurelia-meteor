@@ -1,27 +1,33 @@
 var babel = Npm.require('babel-core');
 
-Plugin.registerSourceHandler('es.js', compile);
+Plugin.registerCompiler({
+  extensions: ['au.js'],
+  filenames: []
+}, function () {
+  return new CompilerES();
+});
 
+function CompilerES() {}
+CompilerES.prototype.processFilesForTarget = function (files) {
 
-function compile(compileStep) {
+  files.forEach(function (file) {
+    var result = babel.transform(file.getContentsAsString(), {
+      modules: "system",
+      optional: [
+        "es7.classProperties",
+        "es7.decorators"
+      ]
+    }).code;
 
-  var content = compileStep.read().toString('utf-8');
-  var result = babel.transform(content, {
-    modules: "system",
-    optional: [
-      "es7.classProperties",
-      "es7.decorators"
-    ]
-  }).code;
+    var moduleName = file.getPathInPackage().replace(/\.au\.js$/, '').replace(/\\/g, '/');
+    var path = moduleName + '.js';
 
-  var moduleName = compileStep.inputPath.replace(/\.es\.js$/, '').replace(/\\/g, '/');
-  var path = moduleName + '.js';
+    var output = result.replace("System.register([", 'System.register("' + moduleName + '",[');
 
-  var output = result.replace("System.register([", 'System.register("' + moduleName + '",[');
-
-  compileStep.addJavaScript({
-    path: path,
-    data: output,
-    sourcePath: compileStep.inputPath
+    file.addJavaScript({
+      path: path,
+      data: output,
+      sourcePath: file.getPathInPackage()
+    });
   });
 }
